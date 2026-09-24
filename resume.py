@@ -23,6 +23,8 @@ def main() -> int:
         f"- Offre Avantage Carburant : {meta['avec_offre']} "
         f"(dont {meta['avec_offre_et_club']} avec adhésion Club en station)",
         f"- Gazole disponible : {meta['gazole_disponible']}",
+        f"  - prix déclarés par les stations (jeu officiel) : {meta.get('gazole_source_officiel', 0)}",
+        f"  - prix plafonnés (fiches du localisateur TotalEnergies) : {meta.get('gazole_plafonne', 0)}",
         f"- Prix du gazole : {prix['min']} à {prix['max']} €/L (médian {prix['median']})",
     ]
     texte = "\n".join(lignes)

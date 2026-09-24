@@ -12,11 +12,12 @@ et affichage de la **disponibilité et du prix du gazole**.
 | Stations-service en France (une ligne par lieu) | **3 148** |
 | dont **Avantage Carburant** | **2 071** (2 015 ouvertes) |
 | dont **Avantage Carburant + adhésion Club en station** | **1 276** |
-| sans l'offre | 1 076 |
-| dont **gazole disponible** | **1 582** (prix de 2,190 à 2,843 €/L, médian 2,250) |
-| sans donnée gazole | 961 |
+| sans l'offre | 1 077 |
+| dont **gazole disponible** | **1 785** (prix de 2,190 à 2,843 €/L, médian 2,250) |
+| dont prix plafonné repris de la fiche TotalEnergies | 203 |
+| sans donnée gazole | 756 |
 
-Par enseigne : Total 2 352 (1 362 avec l'offre) · TotalEnergies Access 709 (708)
+Par enseigne : Total 2 353 (1 362 avec l'offre) · TotalEnergies Access 709 (708)
 · Élan 85 (0) · Elf 1 (1).
 
 L'API décrit parfois un même lieu plusieurs fois, une fiche par type de point de
@@ -65,9 +66,9 @@ L'éligibilité est donc liée au couple **station participante + compte client*
 
 ### Prix et disponibilité du gazole
 
-Le localisateur TotalEnergies ne publie pas les prix (l'appel correspondant
-exige une autorisation CORS réservée à leurs pages). Les prix utilisés sont ceux
-du jeu de données officiel **« Prix des carburants en France »**
+Deux sources publiques se complètent.
+
+**1. Le jeu de données officiel « Prix des carburants en France »**
 (`data.economie.gouv.fr`, alimenté par les stations elles-mêmes et mis à jour
 plusieurs fois par jour) :
 
@@ -76,10 +77,27 @@ plusieurs fois par jour) :
   `carburants_disponibles`, `carburants_indisponibles`
 - rapprochement avec les stations Total par **proximité géographique** : même
   code postal d'abord (tolérance 300 m), sinon la station officielle la plus
-  proche à moins de 150 m. **3 111 stations sur 4 246** sont appariées
+  proche à moins de 150 m. **2 187 stations sur 3 148** sont appariées
   (distance médiane 46 m).
-- les stations non appariées (petits garages et relais qui ne déclarent pas
-  leurs prix) sont marquées **« Inconnu »**, jamais devinées.
+
+**2. La fiche publique de chaque station du localisateur TotalEnergies**
+(API « PoiFinder » employée par le localisateur lui-même) :
+
+- `GET https://apis.poifinder.alzp.tgscloud.net/poi-finder-store-locator-back/api/v1/point-of-interest?location_id=<référence>&type=FUELING`
+  avec l'en-tête `API-Key` (clé publique lue dans `customdevs.woosmap.com/total/front.js`)
+- elle donne, par carburant (`GO`, `GOEX`, `E10`, `SP8`, `E85`…), un **prix**,
+  une **disponibilité** et une date de mise à jour ; interrogée uniquement pour
+  les stations que le jeu officiel ne couvre pas
+- **couverture partielle** : les stations de type « généraliste » (relais,
+  garages) ne sont pas dans ce référentiel (réponse 404) — soit 1 024 des
+  3 148 ; sur les 271 stations « retail » sans prix officiel, 203 ont été
+  complétées et 2 déclarées sans gazole à la vente
+- **le prix renvoyé est un prix plafonné national** (2,25 €/L pour le gazole),
+  relevé une fois par jour : il est marqué comme tel sur la carte (**badge
+  orange**, texte « prix plafonné ») et jamais confondu avec un prix déclaré.
+
+Les stations sans donnée dans les deux sources sont marquées **« Inconnu »**,
+jamais devinées.
 
 États possibles dans la colonne `Gazole disponible` : `Oui`, `Non`
 (rupture, temporaire ou définitive), `Non (non distribué)` et `Inconnu`.
@@ -92,6 +110,7 @@ Le rafraîchissement ne dépend pas d'une machine personnelle :
 flowchart LR
   A[cron GitHub Actions<br/>tous les jours 07:30 Paris] --> B[fetch_stations.py<br/>stations + offre]
   A --> C[prix_carburants.py<br/>prix gazole officiels]
+  C --> C2[prix_carburants.py<br/>fiches stations TotalEnergies<br/>pour les stations non couvertes]
   B --> D[build_map.py<br/>carte interactive]
   B --> E[export_json.py<br/>stations_france.json + meta.json]
   D --> F[GitHub Pages]
@@ -168,6 +187,7 @@ pas de serveur, données toujours fraîches, fonctionne même si le dépôt disp
 |---|---|
 | stations | `GET https://api.woosmap.com/stores/?key=<clé>&storesByPage=100&page=N` avec l'en-tête `Referer: https://services.totalenergies.fr/` — 124 pages |
 | prix gazole | `GET https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?limit=100&offset=N&select=…` — ~98 pages |
+| prix plafonné (complément) | `GET https://apis.poifinder.alzp.tgscloud.net/poi-finder-store-locator-back/api/v1/point-of-interest?location_id=<référence>&type=FUELING` avec l'en-tête `API-Key` — 1 appel par station « retail » non appariée (~270) |
 
 Soit ~4 Mo en tout, à faire une fois par jour et à mettre en cache. La logique à
 porter est celle de `fetch_stations.py` (dédoublonnage par `location_id`, lecture
@@ -185,7 +205,8 @@ l'application et le rafraîchir en tâche de fond.
 Dans les deux cas, aucun serveur personnel n'est nécessaire. Le format de
 `stations_france.json` est décrit dans `data/meta.json` (champ `champs`) :
 `id`, `nom`, `ens`, `adr`, `cp`, `vil`, `dep`, `lat`, `lng`, `st`, `h24`, `av`,
-`cl`, `gz`, `pr`, `mj`.
+`cl`, `gz`, `pr`, `mj`, `gs` (origine du prix : `officiel` ou `total`),
+`gp` (vrai si le prix est plafonné), `gid`.
 
 ## Option : mise à jour locale (systemd)
 
@@ -258,14 +279,16 @@ python3 build_map.py --refresh         # données fraîches + carte en une fois
 ```
 
 Le cache des prix officiels (`data/prix_carburants.json`) est réutilisé tant
-qu'il a moins de 6 heures, puis rafraîchi automatiquement.
+qu'il a moins de 6 heures, puis rafraîchi automatiquement. Les fiches stations
+(`data/prix_total.json`) suivent la même règle ; une station absente du
+référentiel Total y est mémorisée vide, pour ne pas la redemander.
 
 ## Fichiers produits
 
 | Fichier | Contenu |
 |---|---|
 | `fetch_stations.py` | récupération des stations + export CSV |
-| `prix_carburants.py` | récupération des prix officiels + rapprochement géographique |
+| `prix_carburants.py` | récupération des prix officiels + rapprochement géographique + complément par les fiches stations TotalEnergies (prix plafonné) |
 | `build_map.py` | génération de la carte interactive |
 | `export_json.py` | export compact `stations_france.json` + `meta.json` (application mobile) |
 | `resume.py` | résumé des données générées (console et résumé de job GitHub Actions) |
@@ -273,8 +296,9 @@ qu'il a moins de 6 heures, puis rafraîchi automatiquement.
 | `install_services.sh`, `systemd/` | variante locale optionnelle (timer + serveur web) |
 | `data/stations.json` | cache brut de l'API TotalEnergies (toutes les stations du monde) |
 | `data/prix_carburants.json` | cache des prix officiels (9 804 stations) |
+| `data/prix_total.json` | cache des fiches stations TotalEnergies (prix plafonné) |
 | `data/stations_france.csv` | la liste, séparateur `;`, BOM UTF-8 : s'ouvre directement dans Excel / LibreOffice |
-| `data/stations_france.json` | export compact pour l'application Android (771 Ko) |
+| `data/stations_france.json` | export compact pour l'application Android (~890 Ko) |
 | `data/meta.json` | horodatage, compteurs, description des champs |
 | `data/carte.html` | carte interactive autonome (Leaflet + OpenStreetMap, internet requis pour le fond de carte) |
 
@@ -283,7 +307,7 @@ qu'il a moins de 6 heures, puis rafraîchi automatiquement.
 `Enseigne` · `Type` · `Lieu` · `Nom` · `Adresse` · `Code postal` · `Ville` ·
 `Département` · `Latitude` · `Longitude` · `Statut` · `Ouvert 24/24` ·
 **`Avantage Carburant`** (OUI/NON) · **`Adhésion Club en station`** (Oui/Non) ·
-**`Gazole disponible`** · **`Prix gazole (€/L)`** · `MAJ gazole` ·
+**`Gazole disponible`** · **`Prix gazole (€/L)`** · `Source du prix` · `MAJ gazole` ·
 `Rupture gazole` · `Autres offres` · `ID station`
 
 Pour ne garder que les stations participantes : filtrer `Avantage Carburant = OUI`.
@@ -298,8 +322,9 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
   enseigne, département, **gazole** (disponible / indisponible / donnée inconnue)
   et **prix gazole maximum**, tri (département, ville, enseigne, **prix du gazole**),
   recherche plein texte.
-- Le prix du gazole et sa date de mise à jour s'affichent dans la liste et dans
-  chaque infobulle.
+- Le prix du gazole, sa date de mise à jour et son origine (prix déclaré par la
+  station ou prix plafonné de la fiche TotalEnergies, badge orange) s'affichent
+  dans la liste et dans chaque infobulle.
 - **Vérifier en direct** : bouton qui interroge le jeu de données officiel depuis
   le navigateur (aucun serveur intermédiaire) pour actualiser prix, ruptures et
   disponibilité des stations affichées. Les stations déclarent leurs données
@@ -307,8 +332,10 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
   changé depuis la passe du matin. Le bouton **Autour de moi** enchaîne
   automatiquement cette vérification. L'API officielle accepte les appels
   depuis le navigateur (CORS ouvert) ; celle de TotalEnergies non.
-- Trois fonds de carte au choix : Plan OpenStreetMap, Plan IGN, fond clair
-  (secours automatique sur le Plan IGN si les tuiles OSM ne chargent pas).
+  automatiquement cette vérification. L'API officielle accepte les appels
+  depuis le navigateur (CORS ouvert) ; celle de TotalEnergies non : le
+  complément par fiches station se fait donc côté serveur, avant publication.
+- Fond de carte **OpenStreetMap** (tuiles `tile.openstreetmap.org`).
 - Un clic sur une ligne de la liste recentre la carte sur la station.
 
 ## Limites
@@ -318,9 +345,11 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
   l'en-tête `Referer` ainsi que la clé dans `fetch_stations.py`.
 - Les données sont celles du référentiel TotalEnergies (mise à jour quotidienne
   côté source) : un changement d'offre peut mettre quelques jours à apparaître.
-- Le prix du gazole est celui du jeu de données officiel, pas celui du
-  localisateur TotalEnergies ; il est daté (colonne `MAJ gazole`) et peut avoir
-  quelques heures de retard selon la station.
+- Le prix du gazole est daté (colonne `MAJ gazole`) et peut avoir quelques
+  heures de retard selon la station. Les prix repris des fiches stations
+  TotalEnergies (badge orange) sont des **prix plafonnés nationaux**, relevés une
+  fois par jour : ils peuvent différer du prix réellement affiché à la pompe
+  (constaté sur ~4 % des stations comparées, jusqu'à 0,25 €/L d'écart).
 - **Un seul « Gazole » côté officiel** : le jeu de données de l'État ne déclare
   qu'un gazole par station, le gazole standard. Or TotalEnergies référence
   **deux** diesels distincts (codes `GO` et `GOEX`), tous deux affichés

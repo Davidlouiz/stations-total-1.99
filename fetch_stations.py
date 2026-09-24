@@ -143,6 +143,12 @@ def dedupliquer(records: list[dict], garder_lavages_seuls: bool = False) -> list
 # Autres offres / avantages Club visibles dans les tags
 OTHER_OFFERS = re.compile(r"^(Ope|Offre|Operation|Adhesionstation|ClubTotalEnergies)", re.I)
 
+# Origine du prix gazole, pour la colonne « Source du prix » du CSV
+SOURCES_PRIX = {
+    "officiel": "déclaré par la station (jeu officiel)",
+    "total": "prix plafonné (fiche TotalEnergies)",
+}
+
 CSV_COLUMNS = [
     "Enseigne",
     "Type",
@@ -160,6 +166,7 @@ CSV_COLUMNS = [
     "Adhésion Club en station",
     "Gazole disponible",
     "Prix gazole (€/L)",
+    "Source du prix",
     "MAJ gazole",
     "Rupture gazole",
     "Autres offres",
@@ -278,6 +285,7 @@ def write_csv(rows: list[dict], path: Path) -> None:
                     "Oui" if row["club"] else "Non",
                     row["gazole_dispo"],
                     "" if row["gazole_prix"] is None else f"{row['gazole_prix']:.3f}".replace(".", ","),
+                    SOURCES_PRIX.get(row.get("gazole_source", ""), ""),
                     row["gazole_maj"],
                     row["gazole_rupture"],
                     row["autres_offres"],
@@ -325,10 +333,11 @@ def main() -> int:
     if args.sans_prix:
         for record in selected:
             record.update(gazole_dispo="", gazole_prix=None, gazole_maj="",
-                          gazole_rupture="", gazole_officiel=None)
+                          gazole_rupture="", gazole_officiel=None,
+                          gazole_source="", gazole_plafonne=False)
     else:
         print()
-        prix_carburants.enrichir(selected, prix_carburants.telecharger(data_dir, refresh=args.refresh))
+        prix_carburants.enrichir_complet(selected, data_dir, refresh=args.refresh)
 
     csv_path = data_dir / f"stations_{suffix}.csv"
     write_csv(selected, csv_path)

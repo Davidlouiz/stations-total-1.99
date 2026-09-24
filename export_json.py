@@ -49,6 +49,8 @@ def station_compacte(record: dict) -> dict:
         "gz": ETAT_GAZOLE.get(record["gazole_dispo"], "non"),
         "pr": record["gazole_prix"],
         "mj": record["gazole_maj"],
+        "gs": record.get("gazole_source", ""),
+        "gp": record.get("gazole_plafonne", False),
         "gid": record["gazole_officiel"],
     }
 
@@ -76,7 +78,7 @@ def main() -> int:
 
     if not (data_dir / pc.FICHIER_CACHE).exists():
         print("Prix carburants absents du cache : récupération…")
-    pc.enrichir(france, pc.telecharger(data_dir))
+    pc.enrichir_complet(france, data_dir)
 
     stations = [station_compacte(r) for r in france]
     prix = sorted(r["gazole_prix"] for r in france if r["gazole_prix"] is not None)
@@ -89,6 +91,9 @@ def main() -> int:
         "avec_offre": sum(1 for r in france if r["avantage_carburant"]),
         "avec_offre_et_club": sum(1 for r in france if r["avantage_carburant"] and r["club"]),
         "gazole_disponible": sum(1 for r in france if r["gazole_dispo"] == "Oui"),
+        "gazole_source_officiel": sum(1 for r in france if r.get("gazole_source") == "officiel"),
+        "gazole_source_total": sum(1 for r in france if r.get("gazole_source") == "total"),
+        "gazole_plafonne": sum(1 for r in france if r.get("gazole_plafonne")),
         "prix_gazole": {
             "min": prix[0] if prix else None,
             "median": round(statistics.median(prix), 3) if prix else None,
@@ -96,7 +101,10 @@ def main() -> int:
         },
         "sources": {
             "stations": "API du localisateur TotalEnergies (Woosmap/PoiFinder)",
-            "prix": "data.economie.gouv.fr — prix-des-carburants-en-france-flux-instantane-v2",
+            "prix": ("data.economie.gouv.fr — prix-des-carburants-en-france-flux-instantane-v2, "
+                     "complété par les fiches publiques des stations du localisateur "
+                     "TotalEnergies (prix plafonné national, relevé quotidien) pour les stations "
+                     "qui ne déclarent pas leurs prix"),
         },
         "champs": {
             "id": "identifiant station", "nom": "nom", "ens": "enseigne", "adr": "adresse",
@@ -105,6 +113,8 @@ def main() -> int:
             "av": "opération Avantage Carburant", "cl": "adhésion Club en station",
             "gz": "gazole : oui / non / inconnu", "pr": "prix du gazole en €/L (null si inconnu)",
             "mj": "date de mise à jour du prix",
+            "gs": "provenance du prix : officiel (déclaré par la station) ou total (prix plafonné)",
+            "gp": "vrai si le prix est un prix plafonné (fiche TotalEnergies)",
             "gid": "identifiant de la station dans le jeu de données officiel des prix",
         },
     }
