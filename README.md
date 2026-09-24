@@ -116,6 +116,25 @@ Rien n'est committé dans le dépôt (les données sont ignorées par `.gitignor
 tout passe par le déploiement Pages, ce qui évite de faire grossir l'historique
 d'un mois de données par an.
 
+### Fréquence, coût, durée de vie
+
+- **Fréquence** : une fois par jour, **07:30 heure de Paris** (`cron: '30 7 * * *'`
+  associé à `timezone: "Europe/Paris"`, donc pas de décalage à l'heure d'hiver),
+  plus à chaque `push` sur `main` et à la demande (*Actions → Run workflow*).
+  GitHub peut retarder une tâche planifiée aux heures de pointe, d'où le choix de
+  la minute 30 ; la granularité minimale d'une planification est de 5 minutes.
+- **Coût : 0 €** — les GitHub Actions sont gratuites et sans quota de minutes sur
+  un dépôt **public** avec les runners standard, et GitHub Pages est gratuit pour
+  un dépôt public (limites : site publié ≤ 1 Go, bande passante ~100 Go/mois,
+  déploiement ≤ 10 min ; notre site pèse ~2 Mo).
+- **Durée de vie** : GitHub **désactive automatiquement** la planification d'un
+  dépôt public resté *60 jours sans activité*. Comme la publication ne crée aucun
+  commit, le workflow republie un petit `etat.json` à la racine dès que le dernier
+  commit dépasse 45 jours (une poignée de commits par an), ce qui maintient la
+  planification active.
+- Le reste de la chaîne ne dépend de rien : pas de machine personnelle, pas de
+  serveur, pas de clé API (les deux sources sont publiques).
+
 **Mise en service** (une seule fois, à la main) :
 
 ```bash
