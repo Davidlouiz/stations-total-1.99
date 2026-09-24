@@ -22,7 +22,6 @@ import argparse
 import json
 import statistics
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import fetch_stations as fs
@@ -80,7 +79,7 @@ def main() -> int:
 
     stations = [station_compacte(r) for r in france]
     prix = sorted(r["gazole_prix"] for r in france if r["gazole_prix"] is not None)
-    maintenant = datetime.now(timezone.utc).astimezone()
+    maintenant = fs.maintenant()
 
     meta = {
         "genere_le": maintenant.isoformat(timespec="seconds"),

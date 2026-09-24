@@ -130,6 +130,13 @@ workflow) pour que le site soit publié.
 > Pages est gratuit pour un dépôt **public**. Pour un dépôt privé il faut GitHub
 > Pro ; dans ce cas l'application Android a tout intérêt à interroger directement
 > les APIs publiques (voir ci-dessous) plutôt que Pages.
+>
+> ⚠️ **Modifier ce workflow plus tard** : GitHub refuse à un jeton personnel qui
+> n'a pas le scope `workflow` d'écrire dans `.github/workflows/`, ni en `git push`
+> ni via l'API (« refusing to allow a Personal Access Token to create or update
+> workflow … without `workflow` scope »). À ne pas confondre avec un problème
+> d'accès au dépôt ou de SSH/HTTPS : soit le jeton porte le scope `workflow`, soit
+> la modification se fait depuis l'interface web de GitHub.
 
 ## Application Android (sans serveur personnel)
 

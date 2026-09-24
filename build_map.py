@@ -432,7 +432,7 @@ def main() -> int:
     else:
         prix_carburants.enrichir(france, prix_carburants.telecharger(data_dir, refresh=args.refresh))
 
-    date = datetime.now().strftime("%d/%m/%Y à %H:%M")
+    date = fs.maintenant().strftime("%d/%m/%Y à %H:%M")
     html = (
         HTML_TEMPLATE
         .replace("__DATA__", json.dumps(build_geojson(france), ensure_ascii=False).replace("</", "<\\/"))

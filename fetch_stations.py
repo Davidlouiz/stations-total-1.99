@@ -33,9 +33,24 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 import prix_carburants
+
+# Les machines des runners GitHub Actions sont en UTC : on horodate explicitement
+# en heure de Paris, avec repli sur l'heure locale si la base de fuseaux manque.
+try:
+    from zoneinfo import ZoneInfo
+
+    FUSEAU_PARIS = ZoneInfo("Europe/Paris")
+except Exception:  # pragma: no cover - dépend du système
+    FUSEAU_PARIS = None
+
+
+def maintenant() -> datetime:
+    """Heure de Paris (repli : heure locale de la machine)."""
+    return datetime.now(FUSEAU_PARIS) if FUSEAU_PARIS else datetime.now()
 
 # --- API du localisateur TotalEnergies ---------------------------------------
 API_URL = "https://api.woosmap.com/stores/"
