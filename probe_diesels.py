@@ -24,6 +24,7 @@ import csv
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -39,9 +40,20 @@ def cle_api() -> str:
     """Clé publique du localisateur (jamais stockée dans le dépôt)."""
     if os.environ.get("TOTAL_API_KEY"):
         return os.environ["TOTAL_API_KEY"]
-    with urllib.request.urlopen(
-            urllib.request.Request(FRONT_JS, headers=ENTETES_NAVIGATEUR), timeout=30) as reponse:
-        javascript = reponse.read().decode("utf-8", "replace")
+
+    dernier: Exception | None = None
+    for tentative in range(3):
+        try:
+            with urllib.request.urlopen(
+                    urllib.request.Request(FRONT_JS, headers=ENTETES_NAVIGATEUR), timeout=30) as reponse:
+                javascript = reponse.read().decode("utf-8", "replace")
+            break
+        except Exception as erreur:  # réseau capricieux : on réessaie
+            dernier = erreur
+            time.sleep(1 + tentative)
+    else:
+        raise SystemExit(f"JavaScript du localisateur inaccessible : {dernier}")
+
     trouve = re.search(r'totalKey:"([^"]+)"', javascript)
     if not trouve:
         raise SystemExit("Clé d'API introuvable dans le JavaScript du localisateur.")
