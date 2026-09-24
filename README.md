@@ -321,6 +321,14 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
 - Le prix du gazole est celui du jeu de données officiel, pas celui du
   localisateur TotalEnergies ; il est daté (colonne `MAJ gazole`) et peut avoir
   quelques heures de retard selon la station.
+- **Un seul « Gazole » côté officiel** : le jeu de données de l'État ne déclare
+  qu'un gazole par station, le gazole standard. Or TotalEnergies référence
+  **deux** diesels distincts (codes `GO` et `GOEX`), tous deux affichés
+  « Diesel Premier » dans leur propre outil, avec des disponibilités
+  **indépendantes** : l'un peut être en rupture et l'autre non (vérifié sur 23
+  stations, les quatre combinaisons existent). Les colonnes
+  `Gazole disponible` / `Prix gazole` décrivent donc le gazole standard et ne
+  disent rien de l'autre diesel. `<br>Diagnostic : `python3 probe_diesels.py``
 - Un rapprochement géographique peut, rarement, associer une station voisine
   (même code postal, moins de 300 m) : la colonne `ID station` permet de
   vérifier au besoin sur <https://locator.totalenergies.com/>.
