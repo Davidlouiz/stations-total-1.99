@@ -123,7 +123,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const STATIONS = JSON.parse(document.getElementById('donnees').textContent);
-const carte = L.map('carte').setView([46.6, 2.4], 6);
+
+// Vue par défaut : Bayeux. Le tri « distance » se fait par rapport au centre de
+// l'écran, donc la liste s'ouvre directement sur les stations les plus proches.
+const CENTRE_DEFAUT = [49.2766, -0.7031];
+const ZOOM_DEFAUT = 11;
+const carte = L.map('carte').setView(CENTRE_DEFAUT, ZOOM_DEFAUT);
 
 // Fond de carte imposé : OpenStreetMap. Les tuiles « tile.openstreetmap.fr »
 // sont refusées (HTTP 403) depuis une page ouverte en file:// : on utilise
