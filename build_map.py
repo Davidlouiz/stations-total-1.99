@@ -31,7 +31,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <title>Stations TotalEnergies — Avantage Carburant</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  :root { --vert:#1a9e4b; --gris:#9aa0a6; --rand:#e2001a; }
+  :root { --vert:#1a9e4b; --gris:#9aa0a6; --rouge:#d93025; --rand:#e2001a; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:#1c1c1c;
          display:flex; flex-direction:column; height:100vh; }
@@ -67,9 +67,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
            border-radius:10px; color:#fff; vertical-align:middle; }
   .badge.oui { background:var(--vert); }
   .badge.non { background:var(--gris); }
-  .badge.rouge { background:#d93025; }
+  .badge.rouge { background:var(--rouge); }
   .badge.ferme { background:var(--rand); margin-left:4px; }
   .pastille { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; }
+  .legende { background:#fff; padding:6px 8px; border-radius:4px; color:#333;
+             box-shadow:0 1px 4px rgba(0,0,0,.35); font-size:.72rem; line-height:1.5; }
+  .legende span { display:flex; align-items:center; gap:5px; }
+  .legende i { display:inline-block; width:9px; height:9px; border-radius:50%; }
   @media (max-width:820px){
     #filtres { gap:6px; }
     input[type=search] { width:100%; }
@@ -136,6 +140,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   TotalEnergies, contrat électricité/gaz) doivent être vérifiés auprès de la station ou du service
   client TotalEnergies, seuls habilités à faire foi.
   <strong>Badges :</strong> vert = gazole disponible ; rouge = gazole indisponible ou rupture.
+  <strong>Points sur la carte :</strong> rouge = plus de gazole du tout (rupture déclarée ou
+  gazole non distribué dans la station), vert = station avec l'Avantage Carburant, gris = station
+  sans l'offre.
   Aucune donnée personnelle n'est collectée ni transmise : la position demandée par « Autour de
   moi » reste dans votre navigateur et ne sert qu'à trier la liste. TotalEnergies, Elf, Access, Élan
   et les autres marques citées appartiennent à leurs détenteurs.</p>
@@ -160,8 +167,27 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(carte);
 
-const couleur = s => s.avantage_carburant ? '#1a9e4b' : '#9aa0a6';
+const VERT = '#1a9e4b', GRIS = '#9aa0a6', ROUGE = '#d93025';
+
+// Couleur du point. Le ROUGE prime : dès qu'il n'y a plus de gazole du tout
+// (rupture déclarée ou gazole non distribué), le point devient rouge, même si
+// la station participe à l'Avantage Carburant. Sinon : vert pour une station
+// avec l'offre, gris pour une station sans l'offre.
+const couleur = s => s.gazole_dispo.startsWith('Non') ? ROUGE
+                  : (s.avantage_carburant ? VERT : GRIS);
 const couche = L.layerGroup().addTo(carte);
+
+// Légende des points, en bas à droite de la carte.
+const legende = L.control({ position: 'bottomright' });
+legende.onAdd = function () {
+  const div = L.DomUtil.create('div', 'legende');
+  div.innerHTML =
+    '<span><i style="background:' + VERT + '"></i>Avantage Carburant</span>' +
+    '<span><i style="background:' + ROUGE + '"></i>Plus de gazole du tout</span>' +
+    '<span><i style="background:' + GRIS + '"></i>Sans l&#39;offre</span>';
+  return div;
+};
+legende.addTo(carte);
 
 // Marqueurs de la liste affichée. Le tri par distance réagit au déplacement de
 // la carte : chaque recalcul recrée les marqueurs, donc l'infobulle ouverte est
