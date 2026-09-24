@@ -33,11 +33,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <style>
   :root { --vert:#1a9e4b; --gris:#9aa0a6; --rand:#e2001a; }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:#1c1c1c; }
-  header { background:var(--rand); color:#fff; padding:10px 16px; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:#1c1c1c;
+         display:flex; flex-direction:column; height:100vh; }
+  header { flex:0 0 auto; background:var(--rand); color:#fff; padding:10px 16px; }
   header h1 { margin:0; font-size:1.05rem; font-weight:600; }
   header p { margin:4px 0 0; font-size:.78rem; opacity:.9; }
-  #filtres { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  #filtres { display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:0 0 auto;
              padding:8px 16px; background:#f5f5f5; border-bottom:1px solid #ddd; }
   #filtres label { font-size:.78rem; color:#444; display:flex; gap:4px; align-items:center; }
   input,select { font:inherit; font-size:.8rem; padding:4px 6px; border:1px solid #ccc; border-radius:4px; background:#fff; }
@@ -51,8 +52,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .bouton-geoloc:disabled { opacity:.5; cursor:progress; }
   .statut-direct { font-size:.75rem; color:#555; }
   #compteur { font-size:.78rem; margin-left:auto; color:#333; }
-  main { display:flex; height:calc(100vh - 104px); }
+  main { display:flex; flex:1 1 auto; min-height:0; }
   #carte { flex:1 1 auto; min-width:0; }
+  footer { flex:0 0 auto; background:#f5f5f5; border-top:1px solid #ddd; color:#555;
+           font-size:.72rem; line-height:1.45; padding:6px 16px; }
+  footer p { margin:0; }
+  footer strong { color:#333; }
   aside { width:390px; max-width:42vw; overflow:auto; border-left:1px solid #ddd; }
   .item { padding:8px 12px; border-bottom:1px solid #eee; cursor:pointer; font-size:.82rem; }
   .item:hover { background:#f7f7f7; }
@@ -68,7 +73,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   @media (max-width:820px){
     #filtres { gap:6px; }
     input[type=search] { width:100%; }
-    main{flex-direction:column;height:auto;} #carte{height:35vh;} aside{width:auto;max-width:none;}
+    body{height:auto;min-height:100vh;}
+    main{flex-direction:column;} #carte{height:35vh;} aside{width:auto;max-width:none;}
+    footer { font-size:.7rem; padding:6px 12px; }
   }
 </style>
 </head>
@@ -118,6 +125,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <div id="carte"></div>
   <aside id="liste"></aside>
 </main>
+
+<footer id="avertissement">
+  <p><strong>Avertissement :</strong> ce site est un projet personnel, sans lien avec TotalEnergies
+  ni avec l'administration. Les informations proviennent de sources publiques (localisateur de
+  stations TotalEnergies, prix des carburants publiés par le gouvernement) et sont fournies à titre
+  purement indicatif : elles peuvent être incomplètes, obsolètes ou erronées, et ne constituent ni
+  un conseil ni un engagement commercial. Les prix, la disponibilité des carburants et les
+  conditions de l'offre Avantage Carburant (adhésion au Club TotalEnergies, contrat
+  électricité/gaz) doivent être vérifiés auprès de la station ou du service client TotalEnergies,
+  seuls habilités à faire foi. Aucune donnée personnelle n'est collectée ni transmise : la position
+  demandée par « Autour de moi » reste dans votre navigateur et ne sert qu'à trier la liste.
+  TotalEnergies, Elf, Access, Élan et les autres marques citées appartiennent à leurs détenteurs.</p>
+</footer>
 
 <script id="donnees" type="application/json">__DATA__</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
