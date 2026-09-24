@@ -67,7 +67,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
            border-radius:10px; color:#fff; vertical-align:middle; }
   .badge.oui { background:var(--vert); }
   .badge.non { background:var(--gris); }
-  .badge.plafonne { background:#e08a00; }
   .badge.rouge { background:#d93025; }
   .badge.ferme { background:var(--rand); margin-left:4px; }
   .pastille { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; }
@@ -136,9 +135,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   disponibilité des carburants et les conditions de l'offre Avantage Carburant (adhésion au Club
   TotalEnergies, contrat électricité/gaz) doivent être vérifiés auprès de la station ou du service
   client TotalEnergies, seuls habilités à faire foi.
-  <strong>Badges :</strong> vert = prix déclaré par la station et publié par le gouvernement ;
-  orange = prix plafonné national repris de la fiche de la station sur le localisateur
-  TotalEnergies (relevé quotidien) ; rouge = gazole annoncé indisponible ou rupture.
+  <strong>Badges :</strong> vert = gazole disponible ; rouge = gazole indisponible ou rupture.
   Aucune donnée personnelle n'est collectée ni transmise : la position demandée par « Autour de
   moi » reste dans votre navigateur et ne sert qu'à trier la liste. TotalEnergies, Elf, Access, Élan
   et les autres marques citées appartiennent à leurs détenteurs.</p>
@@ -198,12 +195,7 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 const formaterKm = km => km < 1 ? Math.round(km * 1000) + ' m'
                                 : km.toFixed(km < 10 ? 1 : 0).replace('.', ',') + ' km';
 
-// Libellé gazole : prix si disponible, sinon état, sinon donnée absente.
-// La provenance est précisée : prix déclaré par la station (jeu officiel) ou
-// prix plafonné national affiché sur la fiche du localisateur TotalEnergies.
-const provenancePrix = s => s.gazole_source === 'total'
-  ? ' <span style="font-size:.7rem">(prix plafonné)</span>' : '';
-
+// Libellé gazole : prix si disponible, sinon état, sinon donnée absente
 function texteGazole(s) {
   if (s.gazole_dispo === 'Oui') {
     return s.gazole_prix === null ? 'Gazole disponible (prix non communiqué)'
@@ -215,10 +207,7 @@ function texteGazole(s) {
 }
 
 function badgeGazole(s) {
-  if (s.gazole_dispo === 'Oui') {
-    const classe = s.gazole_source === 'total' ? 'plafonne' : 'oui';
-    return '<span class="badge ' + classe + '">' + texteGazole(s) + '</span>' + provenancePrix(s);
-  }
+  if (s.gazole_dispo === 'Oui') return '<span class="badge oui">' + texteGazole(s) + '</span>';
   if (s.gazole_dispo === 'Inconnu') return '<span class="badge non">Gazole : donnée non disponible</span>';
   return '<span class="badge rouge">' + texteGazole(s) + '</span>';
 }
@@ -342,8 +331,7 @@ function afficher() {
         : '<span class="badge non">sans l&#39;offre</span>') +
       (s.statut === 'Ouvert' ? '' : ' <span class="badge ferme">' + s.statut + '</span>') + '</div>' +
       '<div class="meta">' + badgeGazole(s) +
-      (s.gazole_maj ? ' <span style="font-size:.7rem">(MAJ ' + s.gazole_maj
-                      + (s.gazole_source === 'total' ? ' · fiche TotalEnergies' : ' · prix déclaré') + ')</span>' : '') + '</div>';
+      (s.gazole_maj ? ' <span style="font-size:.7rem">(MAJ ' + s.gazole_maj + ')</span>' : '') + '</div>';
     item.addEventListener('click', () => {
       aTirer = s.id;
       carte.setView([s.lat, s.lng], 13);
@@ -474,10 +462,6 @@ async function verifierEnDirect() {
         station.gazole_prix = brut.gazole_prix;
         station.gazole_maj = formaterDate(brut.gazole_maj);
         station.gazole_rupture = (brut.gazole_rupture_type || '').replace(/^./, c => c.toUpperCase());
-        // Donnée vérifiée à l'instant : elle vient du relevé officiel déclaré
-        // par la station, plus de la fiche (plafonnée) du localisateur Total.
-        station.gazole_source = 'officiel';
-        station.gazole_plafonne = false;
         if (station.gazole_dispo !== 'Oui') ruptures += 1;
       }
     }
@@ -507,8 +491,7 @@ def build_geojson(records: list[dict]) -> list[dict]:
     champs = ("nom", "enseigne", "adresse", "code_postal", "ville", "departement",
               "statut", "avantage_carburant", "club", "ouvert_2424",
               "gazole_dispo", "gazole_prix", "gazole_maj", "gazole_rupture",
-              "gazole_source", "gazole_plafonne", "gazole_officiel",
-              "lat", "lng", "id")
+              "gazole_officiel", "lat", "lng", "id")
     return [{cle: record[cle] for cle in champs} for record in records]
 
 

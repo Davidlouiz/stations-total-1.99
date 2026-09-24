@@ -14,7 +14,7 @@ et affichage de la **disponibilité et du prix du gazole**.
 | dont **Avantage Carburant + adhésion Club en station** | **1 276** |
 | sans l'offre | 1 077 |
 | dont **gazole disponible** | **1 785** (prix de 2,190 à 2,843 €/L, médian 2,250) |
-| dont prix plafonné repris de la fiche TotalEnergies | 203 |
+| dont prix repris de la fiche TotalEnergies | 203 |
 | sans donnée gazole | 756 |
 
 Par enseigne : Total 2 353 (1 362 avec l'offre) · TotalEnergies Access 709 (708)
@@ -93,8 +93,9 @@ plusieurs fois par jour) :
   3 148 ; sur les 271 stations « retail » sans prix officiel, 203 ont été
   complétées et 2 déclarées sans gazole à la vente
 - **le prix renvoyé est un prix plafonné national** (2,25 €/L pour le gazole),
-  relevé une fois par jour : il est marqué comme tel sur la carte (**badge
-  orange**, texte « prix plafonné ») et jamais confondu avec un prix déclaré.
+  relevé une fois par jour ; ses limites sont expliquées dans l'avertissement
+  en bas de carte, mais il est affiché comme les autres prix (même présentation,
+  mêmes filtres, même tri).
 
 Les stations sans donnée dans les deux sources sont marquées **« Inconnu »**,
 jamais devinées.
@@ -322,9 +323,8 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
   enseigne, département, **gazole** (disponible / indisponible / donnée inconnue)
   et **prix gazole maximum**, tri (département, ville, enseigne, **prix du gazole**),
   recherche plein texte.
-- Le prix du gazole, sa date de mise à jour et son origine (prix déclaré par la
-  station ou prix plafonné de la fiche TotalEnergies, badge orange) s'affichent
-  dans la liste et dans chaque infobulle.
+- Le prix du gazole et sa date de mise à jour s'affichent dans la liste et dans
+  chaque infobulle.
 - **Vérifier en direct** : bouton qui interroge le jeu de données officiel depuis
   le navigateur (aucun serveur intermédiaire) pour actualiser prix, ruptures et
   disponibilité des stations affichées. Les stations déclarent leurs données
@@ -347,9 +347,9 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
   côté source) : un changement d'offre peut mettre quelques jours à apparaître.
 - Le prix du gazole est daté (colonne `MAJ gazole`) et peut avoir quelques
   heures de retard selon la station. Les prix repris des fiches stations
-  TotalEnergies (badge orange) sont des **prix plafonnés nationaux**, relevés une
-  fois par jour : ils peuvent différer du prix réellement affiché à la pompe
-  (constaté sur ~4 % des stations comparées, jusqu'à 0,25 €/L d'écart).
+  TotalEnergies sont des **prix plafonnés nationaux**, relevés une fois par
+  jour : ils peuvent différer du prix réellement affiché à la pompe (constaté
+  sur ~4 % des stations comparées, jusqu'à 0,25 €/L d'écart).
 - **Un seul « Gazole » côté officiel** : le jeu de données de l'État ne déclare
   qu'un gazole par station, le gazole standard. Or TotalEnergies référence
   **deux** diesels distincts (codes `GO` et `GOEX`), tous deux affichés
