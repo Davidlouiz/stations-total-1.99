@@ -1,12 +1,13 @@
 name: Mise à jour des données
 on:
   schedule:
-    - cron: '30 5 * * *'
+    - cron: '30 7 * * *'
+      timezone: "Europe/Paris"
   workflow_dispatch:
   push:
     branches: [main]
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
@@ -33,6 +34,20 @@ jobs:
           cp data/carte.html site/carte.html
           cp data/stations_france.csv data/stations_france.json data/meta.json site/
       - run: python3 resume.py
+      # GitHub désactive une tâche planifiée après 60 jours sans activité du
+      # dépôt : on republie donc un petit fichier d'état de temps en temps.
+      - name: Maintenir l'activité du dépôt
+        run: |
+          age=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "Dernier commit il y a $age jour(s)"
+          if [ "$age" -gt 45 ]; then
+            cp data/meta.json etat.json
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add etat.json
+            git commit -m "Point d'etape des donnees (maintien de l'activite du depot)"
+            git push
+          fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
