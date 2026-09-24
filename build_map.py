@@ -48,6 +48,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .bouton-geoloc { font:inherit; font-size:.8rem; padding:4px 10px; border:0; border-radius:4px;
                    background:var(--rand); color:#fff; cursor:pointer; }
   .bouton-geoloc:hover { opacity:.9; }
+  .bouton-geoloc:disabled { opacity:.5; cursor:progress; }
+  .statut-direct { font-size:.75rem; color:#555; }
   #compteur { font-size:.78rem; margin-left:auto; color:#333; }
   main { display:flex; height:calc(100vh - 104px); }
   #carte { flex:1 1 auto; min-width:0; }
@@ -113,6 +115,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <label><input type="checkbox" id="masquerFermes" checked> masquer les fermées</label>
   <label><input type="checkbox" id="clubRequis"> adhésion Club en station</label>
   <button type="button" id="geoloc" class="bouton-geoloc">Autour de moi</button>
+  <button type="button" id="enDirect" class="bouton-geoloc">Vérifier en direct</button>
+  <span id="statutDirect" class="statut-direct"></span>
   <label><input type="search" id="recherche" placeholder="ville, nom, code postal…"></label>
   <span id="compteur"></span>
 </div>
@@ -378,6 +382,9 @@ document.getElementById('geoloc').addEventListener('click', () => {
       }).bindPopup('Ma position').addTo(carte);
       carte.setView([lat, lng], 11);
       bouton.textContent = 'Autour de moi';
+      // Les stations affichées sont celles qui nous intéressent : on vérifie
+      // leur disponibilité réelle tout de suite.
+      verifierEnDirect();
     },
     erreur => {
       bouton.textContent = 'Autour de moi';
@@ -387,6 +394,77 @@ document.getElementById('geoloc').addEventListener('click', () => {
     { enableHighAccuracy: true, timeout: 12000 }
   );
 });
+
+// « Vérifier en direct » : interroge le jeu de données officiel (mis à jour par
+// les stations toutes les ~10 minutes) pour la disponibilité et le prix du
+// gazole des stations affichées. Aucun serveur intermédiaire : l'appel part du
+// navigateur, ce qui permet de contrôler avant de prendre la route.
+const API_PRIX = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/'
+  + 'prix-des-carburants-en-france-flux-instantane-v2/records';
+const TAILLE_PAQUET = 80;
+
+const majStatut = texte => { document.getElementById('statutDirect').textContent = texte; };
+
+const formaterDate = iso => {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (isNaN(date)) return iso.slice(0, 16).replace('T', ' ');
+  return date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric',
+                                       hour: '2-digit', minute: '2-digit' });
+};
+
+function etatGazole(brut) {
+  const disponibles = brut.carburants_disponibles || [];
+  if (disponibles.includes('Gazole')) return 'Oui';
+  if (brut.gazole_rupture_type || (brut.carburants_indisponibles || []).includes('Gazole')) return 'Non';
+  return 'Non (non distribué)';
+}
+
+async function verifierEnDirect() {
+  const bouton = document.getElementById('enDirect');
+  const stations = stationsFiltrees().filter(s => s.gazole_officiel);
+  if (!stations.length) {
+    majStatut('Aucune station affichée ne publie ses prix officiels.');
+    return;
+  }
+  bouton.disabled = true;
+  bouton.textContent = 'Vérification…';
+  const parId = new Map(stations.map(s => [String(s.gazole_officiel), s]));
+  const ids = [...parId.keys()];
+  let lues = 0, ruptures = 0;
+  try {
+    for (let i = 0; i < ids.length; i += TAILLE_PAQUET) {
+      const paquet = ids.slice(i, i + TAILLE_PAQUET);
+      const url = API_PRIX + '?limit=100&order_by=id'
+        + '&select=id,gazole_prix,gazole_maj,gazole_rupture_type,carburants_disponibles,carburants_indisponibles'
+        + '&where=' + encodeURIComponent('id in (' + paquet.join(',') + ')');
+      const reponse = await fetch(url);
+      if (!reponse.ok) throw new Error('HTTP ' + reponse.status);
+      const donnees = await reponse.json();
+      for (const brut of donnees.results || []) {
+        const station = parId.get(String(brut.id));
+        if (!station) continue;
+        lues += 1;
+        station.gazole_dispo = etatGazole(brut);
+        station.gazole_prix = brut.gazole_prix;
+        station.gazole_maj = formaterDate(brut.gazole_maj);
+        station.gazole_rupture = (brut.gazole_rupture_type || '').replace(/^./, c => c.toUpperCase());
+        if (station.gazole_dispo !== 'Oui') ruptures += 1;
+      }
+    }
+    afficher();
+    const heure = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    majStatut('Vérifié en direct à ' + heure + ' : ' + lues + ' station(s) actualisée(s), '
+              + ruptures + ' sans gazole.');
+  } catch (erreur) {
+    majStatut('Vérification impossible (' + erreur.message + ') — réessaie plus tard.');
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = 'Vérifier en direct';
+  }
+}
+
+document.getElementById('enDirect').addEventListener('click', verifierEnDirect);
 
 afficher();
 </script>
@@ -399,7 +477,8 @@ def build_geojson(records: list[dict]) -> list[dict]:
     """Ne garde que les champs utiles à la carte, avec un id court."""
     champs = ("nom", "enseigne", "adresse", "code_postal", "ville", "departement",
               "statut", "avantage_carburant", "club", "ouvert_2424",
-              "gazole_dispo", "gazole_prix", "gazole_maj", "gazole_rupture", "lat", "lng", "id")
+              "gazole_dispo", "gazole_prix", "gazole_maj", "gazole_rupture",
+              "gazole_officiel", "lat", "lng", "id")
     return [{cle: record[cle] for cle in champs} for record in records]
 
 

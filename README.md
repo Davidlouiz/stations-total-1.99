@@ -300,6 +300,13 @@ Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
   recherche plein texte.
 - Le prix du gazole et sa date de mise à jour s'affichent dans la liste et dans
   chaque infobulle.
+- **Vérifier en direct** : bouton qui interroge le jeu de données officiel depuis
+  le navigateur (aucun serveur intermédiaire) pour actualiser prix, ruptures et
+  disponibilité des stations affichées. Les stations déclarent leurs données
+  environ toutes les 10 minutes : c'est le moyen de contrôler à 18 h ce qui a
+  changé depuis la passe du matin. Le bouton **Autour de moi** enchaîne
+  automatiquement cette vérification. L'API officielle accepte les appels
+  depuis le navigateur (CORS ouvert) ; celle de TotalEnergies non.
 - Trois fonds de carte au choix : Plan OpenStreetMap, Plan IGN, fond clair
   (secours automatique sur le Plan IGN si les tuiles OSM ne chargent pas).
 - Un clic sur une ligne de la liste recentre la carte sur la station.

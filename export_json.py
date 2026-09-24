@@ -49,6 +49,7 @@ def station_compacte(record: dict) -> dict:
         "gz": ETAT_GAZOLE.get(record["gazole_dispo"], "non"),
         "pr": record["gazole_prix"],
         "mj": record["gazole_maj"],
+        "gid": record["gazole_officiel"],
     }
 
 
@@ -104,6 +105,7 @@ def main() -> int:
             "av": "opération Avantage Carburant", "cl": "adhésion Club en station",
             "gz": "gazole : oui / non / inconnu", "pr": "prix du gazole en €/L (null si inconnu)",
             "mj": "date de mise à jour du prix",
+            "gid": "identifiant de la station dans le jeu de données officiel des prix",
         },
     }
 
