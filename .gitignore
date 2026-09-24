@@ -1,0 +1,9 @@
+# Données générées et caches locaux (régénérés par les scripts ou par GitHub Actions)
+data/
+site/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

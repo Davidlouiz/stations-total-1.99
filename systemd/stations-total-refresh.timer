@@ -1,0 +1,13 @@
+[Unit]
+Description=stations-total-1.99 — timer quotidien de rafraîchissement
+
+[Timer]
+# Tôt le matin, avant d'avoir besoin des données dans la journée
+OnCalendar=*-*-* 07:30:00
+# Décalage aléatoire pour ne pas taper les APIs à la seconde pile
+RandomizedDelaySec=600
+# Si le PC était éteint, l'exécution manquée se rattrape au démarrage
+Persistent=true
+
+[Install]
+WantedBy=timers.target

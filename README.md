@@ -1,0 +1,302 @@
+# Stations TotalEnergies — Opération Avantage Carburant
+
+Liste complète des stations du réseau TotalEnergies, avec distinction de celles
+qui participent à l'**Opération Avantage Carburant** (prix plafonné, l'offre
+« Club TotalEnergies » réservée aux clients avec un contrat électricité/gaz),
+et affichage de la **disponibilité et du prix du gazole**.
+
+## Résultat (données du 24/09/2026)
+
+| | Stations |
+|---|---|
+| Stations-service en France (une ligne par lieu) | **3 148** |
+| dont **Avantage Carburant** | **2 071** (2 015 ouvertes) |
+| dont **Avantage Carburant + adhésion Club en station** | **1 276** |
+| sans l'offre | 1 076 |
+| dont **gazole disponible** | **1 582** (prix de 2,190 à 2,843 €/L, médian 2,250) |
+| sans donnée gazole | 961 |
+
+Par enseigne : Total 2 352 (1 362 avec l'offre) · TotalEnergies Access 709 (708)
+· Élan 85 (0) · Elf 1 (1).
+
+L'API décrit parfois un même lieu plusieurs fois, une fiche par type de point de
+vente (« station-service » et « centre de lavage » par exemple). Le script ne
+garde qu'**une ligne par lieu** (la fiche carburant) et fusionne les tags des
+fiches : sans cela, 4 246 lignes pour 3 147 lieux, avec des valeurs
+contradictoires pour la même adresse (l'offre présente sur la fiche carburant,
+absente sur la fiche lavage).
+
+## Deux périmètres possibles pour « l'opération à 1,99 € »
+
+Les stations portent deux tags proches :
+
+| Tag | Sens | Stations |
+|---|---|---|
+| `OpeAvantageCarburant` | l'offre Avantage Carburant (prix plafonné pour les clients Club avec contrat élec/gaz) | 2 071 |
+| `Adhesionstation` | la station peut faire adhérer au Club TotalEnergies sur place | 1 276 avec l'offre |
+
+Ces 1 276 stations correspondent à l'ordre de grandeur des « 1 200 stations »
+communiqué par TotalEnergies pour l'opération de plafonnement. Sur l'exemple
+vérifié : à Bayeux (16 bd Sadi Carnot) l'offre est présente **sans** adhésion en
+station, à Vaucelles (20 av. de la Drôme) elle est présente **avec** adhésion —
+seule différence de données entre les deux stations.
+
+Le CSV expose les deux colonnes, la carte permet de cocher « adhésion Club en
+station » pour ne retenir que le périmètre restreint.
+
+## D'où viennent les données
+
+L'application mobile et la page <https://services.totalenergies.fr/stations>
+s'appuient sur le localisateur TotalEnergies (Woosmap / PoiFinder). Chaque
+station y est décrite par une liste de `tags`, et le filtre **« Avantage
+Carburant »** de la catégorie *Club TotalEnergies* correspond exactement au tag
+`OpeAvantageCarburant` (« Opération Avantage Carburant »).
+
+- `GET https://api.woosmap.com/stores/?key=<clé publique>&storesByPage=100&page=N`
+  avec l'en-tête `Referer: https://services.totalenergies.fr/`
+- 124 pages, 12 360 stations dans le monde, dont 4 723 en France (toutes
+  enseignes et tous types de points de vente confondus).
+
+D'après la fiche officielle de l'offre : prix plafonné **1,99 €/L** (1,94 €/L
+depuis le 2 septembre 2024), tous carburants sauf GNL/GNR, dans la limite de
+2 000 litres par année civile et 2 prises de carburant par jour, pour les
+clients titulaires d'un contrat d'énergie TotalEnergies et membres du Club.
+L'éligibilité est donc liée au couple **station participante + compte client**.
+
+### Prix et disponibilité du gazole
+
+Le localisateur TotalEnergies ne publie pas les prix (l'appel correspondant
+exige une autorisation CORS réservée à leurs pages). Les prix utilisés sont ceux
+du jeu de données officiel **« Prix des carburants en France »**
+(`data.economie.gouv.fr`, alimenté par les stations elles-mêmes et mis à jour
+plusieurs fois par jour) :
+
+- `GET https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records`
+- champs utilisés : `gazole_prix`, `gazole_maj`, `gazole_rupture_type`,
+  `carburants_disponibles`, `carburants_indisponibles`
+- rapprochement avec les stations Total par **proximité géographique** : même
+  code postal d'abord (tolérance 300 m), sinon la station officielle la plus
+  proche à moins de 150 m. **3 111 stations sur 4 246** sont appariées
+  (distance médiane 46 m).
+- les stations non appariées (petits garages et relais qui ne déclarent pas
+  leurs prix) sont marquées **« Inconnu »**, jamais devinées.
+
+États possibles dans la colonne `Gazole disponible` : `Oui`, `Non`
+(rupture, temporaire ou définitive), `Non (non distribué)` et `Inconnu`.
+
+## Fonctionnement sans ordinateur (GitHub Actions + Pages)
+
+Le rafraîchissement ne dépend pas d'une machine personnelle :
+
+```mermaid
+flowchart LR
+  A[cron GitHub Actions<br/>tous les jours 07:30 Paris] --> B[fetch_stations.py<br/>stations + offre]
+  A --> C[prix_carburants.py<br/>prix gazole officiels]
+  B --> D[build_map.py<br/>carte interactive]
+  B --> E[export_json.py<br/>stations_france.json + meta.json]
+  D --> F[GitHub Pages]
+  E --> F
+  F --> G[carte web]
+  F --> H[application Android]
+```
+
+L'action [`.github/workflows/maj-donnees.yml`](.github/workflows/maj-donnees.yml)
+tourne tous les jours à 05:30 UTC (07:30 à Paris en heure d'été), au premier
+`push` sur `main`, ou à la demande via le bouton **Run workflow**. Elle publie
+sur GitHub Pages :
+
+| URL | Contenu |
+|---|---|
+| `https://<utilisateur>.github.io/stations-total-1.99/` | la carte interactive |
+| `…/stations_france.json` | stations compactes (771 Ko, 3 148 entrées) pour l'application |
+| `…/meta.json` | version, horodatage, compteurs (pour savoir si le cache de l'app est à jour) |
+| `…/stations_france.csv` | même données au format tableur |
+
+Rien n'est committé dans le dépôt (les données sont ignorées par `.gitignore`) :
+tout passe par le déploiement Pages, ce qui évite de faire grossir l'historique
+d'un mois de données par an.
+
+**Mise en service** (une seule fois, à la main) :
+
+```bash
+git remote add origin https://github.com/Davidlouiz/stations-total-1.99.git
+git push -u origin main
+```
+
+puis dans le dépôt : *Settings → Pages → Build and deployment → Source :
+**GitHub Actions***. Il faut ensuite un premier passage de l'action (Run
+workflow) pour que le site soit publié.
+
+> Pages est gratuit pour un dépôt **public**. Pour un dépôt privé il faut GitHub
+> Pro ; dans ce cas l'application Android a tout intérêt à interroger directement
+> les APIs publiques (voir ci-dessous) plutôt que Pages.
+
+## Application Android (sans serveur personnel)
+
+Deux stratégies, combinables :
+
+**A. L'application interroge directement les deux APIs publiques** (recommandé :
+pas de serveur, données toujours fraîches, fonctionne même si le dépôt disparaît)
+
+| Données | Appel |
+|---|---|
+| stations | `GET https://api.woosmap.com/stores/?key=<clé>&storesByPage=100&page=N` avec l'en-tête `Referer: https://services.totalenergies.fr/` — 124 pages |
+| prix gazole | `GET https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?limit=100&offset=N&select=…` — ~98 pages |
+
+Soit ~4 Mo en tout, à faire une fois par jour et à mettre en cache. La logique à
+porter est celle de `fetch_stations.py` (dédoublonnage par `location_id`, lecture
+du tag `OpeAvantageCarburant`) et de `prix_carburants.py` (rapprochement par
+haversine : même code postal à 300 m, sinon 150 m) — une centaine de lignes de
+Kotlin. L'application peut alors trier par distance au GPS du téléphone.
+
+**B. L'application télécharge `stations_france.json` depuis GitHub Pages**
+
+Plus simple : un seul fichier de 771 Ko, déjà dédoublonné et apparié aux prix,
+à comparer à `meta.json` pour ne le retélécharger que si `version` a changé.
+C'est le mode « hors ligne » naturel : embarquer le JSON dans les assets de
+l'application et le rafraîchir en tâche de fond.
+
+Dans les deux cas, aucun serveur personnel n'est nécessaire. Le format de
+`stations_france.json` est décrit dans `data/meta.json` (champ `champs`) :
+`id`, `nom`, `ens`, `adr`, `cp`, `vil`, `dep`, `lat`, `lng`, `st`, `h24`, `av`,
+`cl`, `gz`, `pr`, `mj`.
+
+## Option : mise à jour locale (systemd)
+
+Utile si l'on veut des données fraîches sur la machine sans attendre l'action
+GitHub, ou pour travailler hors ligne. Ce n'est plus le mécanisme principal :
+
+| Unité | Rôle |
+|---|---|
+| `stations-total-refresh.timer` | déclenche le rafraîchissement chaque jour à **07:30** (`RandomizedDelaySec=600`, `Persistent=true`) |
+| `stations-total-refresh.service` | relance `fetch_stations.py --refresh` puis `build_map.py` (~1 min) |
+| `stations-total-web.service` | sert la carte en permanence sur <http://localhost:8000/data/carte.html> |
+
+Installation (déjà faite sur cette machine) :
+
+```bash
+./install_services.sh            # timer + serveur web
+./install_services.sh --no-web   # rafraîchissement seulement
+```
+
+Suivi et commandes utiles :
+
+```bash
+systemctl --user list-timers stations-total-refresh.timer
+systemctl --user start stations-total-refresh.service   # rafraîchir maintenant
+journalctl --user -u stations-total-refresh.service -n 50
+systemctl --user status stations-total-web.service
+```
+
+Désinstallation :
+
+```bash
+systemctl --user disable --now stations-total-refresh.timer stations-total-web.service
+rm ~/.config/systemd/user/stations-total-*.*
+systemctl --user daemon-reload
+```
+
+Le rafraîchissement ne tourne que lorsque la session est ouverte ; pour qu'il
+fonctionne aussi PC verrouillé ou déconnecté, activer le *linger* :
+
+```bash
+sudo loginctl enable-linger $USER
+```
+
+La date et l'heure de génération sont rappelées en haut de la carte
+(« données générées le 24/09/2026 à 11:19 ») : recharge la page pour voir la
+dernière version.
+
+## Utilisation
+
+Aucune dépendance : Python 3 standard uniquement.
+
+```bash
+python3 fetch_stations.py     # stations + prix gazole -> data/stations.json + CSV
+python3 build_map.py          # carte -> data/carte.html
+python3 export_json.py        # export mobile -> data/stations_france.json + meta.json
+```
+
+Un seul appel réseau suffit pour tout produire : `export_json.py` et
+`build_map.py` réutilisent les caches `data/stations.json` et
+`data/prix_carburants.json`.
+
+Options utiles :
+
+```bash
+python3 fetch_stations.py --refresh    # force le retéléchargement (sinon cache)
+python3 fetch_stations.py --tous-poi   # inclut lavages, bornes de recharge, aviation
+python3 fetch_stations.py --tous-pays  # monde entier au lieu de la France
+python3 fetch_stations.py --sans-prix  # sans les prix gazole
+python3 build_map.py --refresh         # données fraîches + carte en une fois
+```
+
+Le cache des prix officiels (`data/prix_carburants.json`) est réutilisé tant
+qu'il a moins de 6 heures, puis rafraîchi automatiquement.
+
+## Fichiers produits
+
+| Fichier | Contenu |
+|---|---|
+| `fetch_stations.py` | récupération des stations + export CSV |
+| `prix_carburants.py` | récupération des prix officiels + rapprochement géographique |
+| `build_map.py` | génération de la carte interactive |
+| `export_json.py` | export compact `stations_france.json` + `meta.json` (application mobile) |
+| `resume.py` | résumé des données générées (console et résumé de job GitHub Actions) |
+| `.github/workflows/maj-donnees.yml` | rafraîchissement quotidien + publication GitHub Pages |
+| `install_services.sh`, `systemd/` | variante locale optionnelle (timer + serveur web) |
+| `data/stations.json` | cache brut de l'API TotalEnergies (toutes les stations du monde) |
+| `data/prix_carburants.json` | cache des prix officiels (9 804 stations) |
+| `data/stations_france.csv` | la liste, séparateur `;`, BOM UTF-8 : s'ouvre directement dans Excel / LibreOffice |
+| `data/stations_france.json` | export compact pour l'application Android (771 Ko) |
+| `data/meta.json` | horodatage, compteurs, description des champs |
+| `data/carte.html` | carte interactive autonome (Leaflet + OpenStreetMap, internet requis pour le fond de carte) |
+
+### Colonnes du CSV
+
+`Enseigne` · `Type` · `Lieu` · `Nom` · `Adresse` · `Code postal` · `Ville` ·
+`Département` · `Latitude` · `Longitude` · `Statut` · `Ouvert 24/24` ·
+**`Avantage Carburant`** (OUI/NON) · **`Adhésion Club en station`** (Oui/Non) ·
+**`Gazole disponible`** · **`Prix gazole (€/L)`** · `MAJ gazole` ·
+`Rupture gazole` · `Autres offres` · `ID station`
+
+Pour ne garder que les stations participantes : filtrer `Avantage Carburant = OUI`.
+Pour le périmètre restreint : `Avantage Carburant = OUI` **et** `Adhésion Club en station = Oui`.
+Pour les stations avec du gazole : filtrer `Gazole disponible = Oui`.
+
+### Carte interactive
+
+- Marqueurs **verts** = Avantage Carburant, **gris** = sans l'offre.
+- Boutons `Toutes` / `Avantage Carburant` / `Sans l'offre`, cases
+  **adhésion Club en station** et masquage des stations fermées, filtres par
+  enseigne, département, **gazole** (disponible / indisponible / donnée inconnue)
+  et **prix gazole maximum**, tri (département, ville, enseigne, **prix du gazole**),
+  recherche plein texte.
+- Le prix du gazole et sa date de mise à jour s'affichent dans la liste et dans
+  chaque infobulle.
+- Trois fonds de carte au choix : Plan OpenStreetMap, Plan IGN, fond clair
+  (secours automatique sur le Plan IGN si les tuiles OSM ne chargent pas).
+- Un clic sur une ligne de la liste recentre la carte sur la station.
+
+## Limites
+
+- L'API utilisée est une API publique de site, non documentée : elle peut
+  changer sans préavis. En cas de rupture, relancer `--refresh` et vérifier
+  l'en-tête `Referer` ainsi que la clé dans `fetch_stations.py`.
+- Les données sont celles du référentiel TotalEnergies (mise à jour quotidienne
+  côté source) : un changement d'offre peut mettre quelques jours à apparaître.
+- Le prix du gazole est celui du jeu de données officiel, pas celui du
+  localisateur TotalEnergies ; il est daté (colonne `MAJ gazole`) et peut avoir
+  quelques heures de retard selon la station.
+- Un rapprochement géographique peut, rarement, associer une station voisine
+  (même code postal, moins de 300 m) : la colonne `ID station` permet de
+  vérifier au besoin sur <https://locator.totalenergies.com/>.
+- Les 2 071 stations portant le tag `OpeAvantageCarburant` sont confirmées par
+  les deux API TotalEnergies et par la fiche publique de chaque station (section
+  « Fidélité ») ; l'icône affichée par l'application mobile peut néanmoins
+  correspondre au sous-ensemble avec adhésion Club (1 276). Comparer les deux
+  périmètres avant de conclure.
+- Le statut « Fermé temporairement » provient de la source ; utiliser
+  `Statut = Ouvert` pour une liste fiable.
+- La carte nécessite internet (Leaflet est chargé depuis un CDN, le fond de
+  carte depuis OpenStreetMap France / IGN).

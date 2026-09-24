@@ -1,0 +1,16 @@
+[Unit]
+Description=stations-total-1.99 — serveur web de la carte interactive
+Documentation=file://%PROJET%/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%PROJET%
+ExecStart=/usr/bin/python3 -m http.server 8000 --bind 0.0.0.0 --directory %PROJET%
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

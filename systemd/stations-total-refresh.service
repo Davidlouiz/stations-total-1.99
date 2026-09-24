@@ -1,0 +1,18 @@
+[Unit]
+Description=stations-total-1.99 — rafraîchissement des stations TotalEnergies et des prix gazole
+Documentation=file://%PROJET%/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%PROJET%
+# Laisse le réseau se stabiliser au démarrage (wifi, VPN...)
+ExecStartPre=/bin/sleep 20
+# 1. stations + offre Avantage Carburant + prix gazole officiels (data/stations.json,
+#    data/prix_carburants.json, data/stations_france.csv)
+ExecStart=/usr/bin/python3 fetch_stations.py --refresh
+# 2. carte interactive régénérée à partir des mêmes données (data/carte.html)
+ExecStart=/usr/bin/python3 build_map.py
+# Les APIs peuvent être lentes : 124 pages côté TotalEnergies, ~100 côté prix
+TimeoutStartSec=1800
