@@ -166,11 +166,22 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const couleur = s => s.avantage_carburant ? '#1a9e4b' : '#9aa0a6';
 const couche = L.layerGroup().addTo(carte);
 
-// Marqueurs de la liste affichée, et station dont l'infobulle doit s'ouvrir
-// après un recalcul (le tri par distance réagit au déplacement de la carte :
-// les marqueurs sont recréés, donc l'infobulle doit être rouverte ensuite).
+// Marqueurs de la liste affichée. Le tri par distance réagit au déplacement de
+// la carte : chaque recalcul recrée les marqueurs, donc l'infobulle ouverte est
+// mémorisée pour être rouverte sur le nouveau marqueur. Sans cela, le
+// déplacement déclenché par un clic dans la liste (ou par le navigateur)
+// reconstruisait les marqueurs et l'infobulle se refermait aussitôt.
 const marqueurs = new Map();
-let aTirer = null;
+let aTirer = null;           // station dont l'infobulle vient d'être demandée
+let infobulleOuverte = null; // station dont l'infobulle est actuellement ouverte
+
+// Ouvre l'infobulle d'une station, si son marqueur est bien sur la carte.
+// Le marqueur est relu ici (et non capturé plus tôt) car un recalcul a pu le
+// remplacer entre-temps.
+function ouvrirInfobulle(id) {
+  const marqueur = marqueurs.get(id);
+  if (marqueur && carte.hasLayer(marqueur)) marqueur.openPopup();
+}
 
 // Centre de l'écran (mis à jour à chaque déplacement de la carte)
 let centre = carte.getCenter();
@@ -280,8 +291,15 @@ function afficher() {
     + avecGazole + " avec gazole disponible"
     + (modeDistance ? " — centre de l'écran : " + centre.lat.toFixed(3) + ', ' + centre.lng.toFixed(3) : '');
 
+  // Infobulle à remettre en place après reconstruction des marqueurs :
+  // celle demandée par un clic dans la liste, sinon celle déjà ouverte.
+  // (à lire AVANT clearLayers, qui referme l'infobulle courante)
+  const aRouvrir = aTirer !== null ? aTirer : infobulleOuverte;
+  aTirer = null;
+
   couche.clearLayers();
   marqueurs.clear();
+  infobulleOuverte = null;
   const conteneur = document.getElementById('liste');
   conteneur.textContent = '';
   const fragment = document.createDocumentFragment();
@@ -302,8 +320,13 @@ function afficher() {
       '<br><a href="https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng +
       '" target="_blank" rel="noopener">Itinéraire</a> · ' +
       '<a href="https://locator.totalenergies.com/' + s.id +
-      '?type=FUELING&amp;business_type=RETAIL" target="_blank" rel="noopener">Fiche station</a>'
+      '?type=FUELING&amp;business_type=RETAIL" target="_blank" rel="noopener">Fiche station</a>',
+      // autoPan désactivé : la carte ne doit pas se recentrer d'elle-même,
+      // ce qui provoquerait un nouveau recalcul et refermerait l'infobulle.
+      { autoPan: false }
     );
+    marqueur.on('popupopen', () => { infobulleOuverte = s.id; });
+    marqueur.on('popupclose', () => { if (infobulleOuverte === s.id) infobulleOuverte = null; });
     marqueur.addTo(couche);
     marqueurs.set(s.id, marqueur);
 
@@ -324,12 +347,14 @@ function afficher() {
     item.addEventListener('click', () => {
       aTirer = s.id;
       carte.setView([s.lat, s.lng], 13);
-      // Si la carte ne bouge pas (déjà centrée), aucun recalcul n'aura lieu :
-      // on ouvre l'infobulle directement après un court délai.
+      // Si la carte ne bouge pas (déjà centrée), aucun recalcul n'aura lieu et
+      // l'infobulle ne sera donc pas ouverte par afficher() : on l'ouvre après
+      // un court délai. Si un recalcul survient entre-temps, il la rouvrira de
+      // toute façon sur le nouveau marqueur.
       setTimeout(() => {
         if (aTirer === s.id) {
           aTirer = null;
-          marqueur.openPopup();
+          ouvrirInfobulle(s.id);
         }
       }, 400);
     });
@@ -338,12 +363,10 @@ function afficher() {
 
   conteneur.appendChild(fragment);
 
-  // Ouverture demandée par un clic dans la liste, après recalcul de la carte
-  if (aTirer !== null) {
-    const voulu = marqueurs.get(aTirer);
-    aTirer = null;
-    if (voulu) voulu.openPopup();
-  }
+  // Les marqueurs viennent d'être recréés : on remet en place l'infobulle
+  // (celle demandée par un clic dans la liste, sinon celle qui était ouverte),
+  // sinon elle disparaîtrait avec l'ancien marqueur.
+  if (aRouvrir !== null) ouvrirInfobulle(aRouvrir);
 }
 
 document.querySelectorAll('#segAvantage button').forEach(bouton => {
