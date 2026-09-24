@@ -68,7 +68,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   @media (max-width:820px){
     #filtres { gap:6px; }
     input[type=search] { width:100%; }
-    main{flex-direction:column;height:auto;} #carte{height:55vh;} aside{width:auto;max-width:none;}
+    main{flex-direction:column;height:auto;} #carte{height:35vh;} aside{width:auto;max-width:none;}
   }
 </style>
 </head>
@@ -96,13 +96,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </select>
   </label>
   <label>Limite <input type="number" id="limite" min="1" max="500" step="1" value="50" style="width:66px"></label>
-  <label>Fond
-    <select id="fond">
-      <option value="osm">Plan OpenStreetMap</option>
-      <option value="ign">Plan IGN</option>
-      <option value="clair">Fond clair</option>
-    </select>
-  </label>
   <label>Gazole
     <select id="gazole">
       <option value="">toutes</option>
@@ -132,44 +125,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 const STATIONS = JSON.parse(document.getElementById('donnees').textContent);
 const carte = L.map('carte').setView([46.6, 2.4], 6);
 
-// Fonds de carte. Les tuiles « tile.openstreetmap.fr » sont refusées (HTTP 403)
-// depuis une page ouverte en file:// : on utilise OSM standard, avec un secours
-// automatique sur le Plan IGN si les tuiles ne chargent pas.
-const FONDS = {
-  osm: {
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    maxZoom: 19,
-    attribution: '&copy; contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  },
-  ign: {
-    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
-    maxZoom: 18,
-    attribution: '&copy; <a href="https://geoservices.ign.fr/">IGN</a>'
-  },
-  clair: {
-    url: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap, &copy; CARTO'
-  }
-};
-
-let coucheFond = null;
-
-function afficherFond(cle) {
-  if (coucheFond) carte.removeLayer(coucheFond);
-  coucheFond = L.tileLayer(FONDS[cle].url, {
-    maxZoom: FONDS[cle].maxZoom,
-    attribution: FONDS[cle].attribution
-  });
-  coucheFond.on('tileerror', () => {
-    if (cle === 'osm') afficherFond('ign'); // fond par défaut indisponible -> secours
-  });
-  coucheFond.addTo(carte);
-  document.getElementById('fond').value = cle;
-}
-
-afficherFond('osm');
-document.getElementById('fond').addEventListener('change', e => afficherFond(e.target.value));
+// Fond de carte imposé : OpenStreetMap. Les tuiles « tile.openstreetmap.fr »
+// sont refusées (HTTP 403) depuis une page ouverte en file:// : on utilise
+// tile.openstreetmap.org.
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(carte);
 
 const couleur = s => s.avantage_carburant ? '#1a9e4b' : '#9aa0a6';
 const couche = L.layerGroup().addTo(carte);
