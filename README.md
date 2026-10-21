@@ -1,9 +1,48 @@
-# Stations TotalEnergies — Opération Avantage Carburant
+<div align="center">
 
-Liste complète des stations du réseau TotalEnergies, avec distinction de celles
-qui participent à l'**Opération Avantage Carburant** (prix plafonné, l'offre
-« Club TotalEnergies » réservée aux clients avec un contrat électricité/gaz),
-et affichage de la **disponibilité et du prix du gazole**.
+# ⛽ Stations TotalEnergies
+
+**La liste complète des stations du réseau TotalEnergies en France, avec celles
+qui participent à l'Opération Avantage Carburant (prix plafonné ~1,99 €/L) et la
+disponibilité et le prix du gazole station par station.**
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Leaflet](https://img.shields.io/badge/Leaflet-1.9.4-199900?style=for-the-badge&logo=leaflet&logoColor=white)
+![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-Fond_de_carte-7EBC6F?style=for-the-badge&logo=openstreetmap&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![GitHub Pages](https://img.shields.io/badge/GitHub_Pages-222222?style=for-the-badge&logo=githubpages&logoColor=white)
+![CSV / JSON](https://img.shields.io/badge/CSV_%2F_JSON-000000?style=for-the-badge&logo=json&logoColor=white)
+
+**100 % public · 0 dépendance Python · 0 serveur à héberger · données rafraîchies chaque jour**
+
+<a href="https://davidlouiz.github.io/stations-total-1.99/">
+  <img src="docs/capture.png" alt="Aperçu de la carte interactive des stations TotalEnergies" width="100%">
+</a>
+
+**▶︎ Carte en ligne : <https://davidlouiz.github.io/stations-total-1.99/>**
+
+</div>
+
+---
+
+## 🛠️ Stack technique
+
+Le projet est une chaîne **Python + carte web statique**, pensée pour tourner sans
+serveur, sans base de données et sans dépendance à installer :
+
+- **[Python 3](https://www.python.org/)** — récupération, dédoublonnage et rapprochement géographique des stations ; **bibliothèque standard uniquement** (`urllib`, `json`, `csv`, `math`), donc aucun `requirements.txt`.
+- **[Leaflet 1.9.4](https://leafletjs.com/)** — carte interactive autonome (un seul fichier HTML), marqueurs colorés, infobulles, filtres et liste synchronisée avec la carte.
+- **[OpenStreetMap](https://www.openstreetmap.org/)** — fonds de carte libres, sans clé ni service commercial.
+- **[API Woosmap / PoiFinder](https://services.totalenergies.fr/stations)** — localisateur officiel des stations TotalEnergies : une ligne par lieu, tags `OpeAvantageCarburant` et `Adhesionstation`.
+- **[data.economie.gouv.fr](https://www.data.gouv.fr/fr/datasets/prix-des-carburants-en-france-flux-instantane-v2/)** — prix et ruptures de gazole déclarés par les stations, rapprochés par proximité (même code postal, puis 150 m).
+- **[GitHub Actions](https://github.com/features/actions)** — rafraîchissement **quotidien à 07:30 (Paris)** : téléchargement, génération de la carte et des exports, puis publication.
+- **[GitHub Pages](https://pages.github.com/)** — hébergement gratuit de la carte (`index.html`) et des fichiers `stations_france.json` (771 Ko), `stations_france.csv` et `meta.json`.
+- **CSV / JSON** — exports prêts à consommer : CSV pour le tableur, JSON compact à clés courtes pour l'application Android.
+- **[systemd](https://systemd.io/)** *(option)* — mise à jour locale et petit serveur web sur une machine personnelle.
+
+> **Choix de conception** : tout est statique et reproductible — les données ne sont
+> jamais committées, elles sont régénérées à chaque exécution par les scripts et
+> publiées par Pages. Aucune clé API payante, aucun compte, aucune donnée collectée.
 
 ## Résultat (données du 24/09/2026)
 
